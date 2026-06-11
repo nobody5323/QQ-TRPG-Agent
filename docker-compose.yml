@@ -57,11 +57,12 @@ services:
       # 6334 gRPC 内网使用，不暴露
     restart: unless-stopped
     logging: *default-logging
+    # Qdrant 镜像不含 curl/wget，用 TCP 端口检测代替
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      test: ["CMD-SHELL", "cat < /dev/null > /dev/tcp/127.0.0.1/6333 2>/dev/null || exit 1"]
       interval: 15s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   # ── Redis（Alpine 轻量版） ────────────────────────
   redis:
