@@ -1,0 +1,20 @@
+{"sender": "KP", "content": "/bind团 campaign-001", "role": "kp", "msg_type": "private"}
+{"sender": "KP", "content": "/群绑定 123456789 campaign-001", "role": "kp", "msg_type": "private"}
+{"sender": "玩家A", "content": "我来到庄园大门前，铁门上缠满了枯藤。我能做什么？", "role": "player", "msg_type": "group"}
+{"sender": "玩家B", "content": "我先检查一下石柱上的刻字，看看是什么文字。", "role": "player", "msg_type": "group"}
+{"sender": "玩家A", "content": "有没有看门人？我敲门看看。", "role": "player", "msg_type": "group"}
+{"sender": "玩家B", "content": "托马斯看起来像是知道什么，我想和他聊聊。", "role": "player", "msg_type": "group"}
+{"sender": "玩家A", "content": "我们进入大厅了。这幅画像看起来怪怪的。", "role": "player", "msg_type": "group"}
+{"sender": "玩家B", "content": "检查画像背后有没有什么东西。", "role": "player", "msg_type": "group"}
+{"sender": "玩家A", "content": "壁炉里有灰烬，我翻一下看看。", "role": "player", "msg_type": "group"}
+{"sender": "玩家B", "content": "钟停在3：15，这是不是有什么含义？", "role": "player", "msg_type": "group"}
+{"sender": "玩家A", "content": "我们下地下室吧，沿着石阶走。", "role": "player", "msg_type": "group"}
+{"sender": "玩家B", "content": "这面墙好像不太对劲，比其他地方新。", "role": "player", "msg_type": "group"}
+{"sender": "玩家A", "content": "我扳动壁灯，看看有什么反应。", "role": "player", "msg_type": "group"}
+{"sender": "玩家A", "content": "哇，真的有暗门！", "role": "player", "msg_type": "group"}
+{"sender": "玩家B", "content": "爱德华还活着！他到底经历了什么？", "role": "player", "msg_type": "group"}
+{"sender": "玩家A", "content": "地上这个法阵是什么东西？感觉很邪恶。", "role": "player", "msg_type": "group"}
+{"sender": "玩家B", "content": "今天到这里吧，下次再来调查。", "role": "player", "msg_type": "group"}
+{"sender": "玩家A", "content": "good game everyone！", "role": "player", "msg_type": "group"}
+{"sender": "玩家B", "content": "今天吃啥", "role": "player", "msg_type": "group"}
+{"sender": "玩家A", "content": ".r 1d100 侦查检定", "role": "player", "msg_type": "group"}
