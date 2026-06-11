@@ -1,4 +1,4 @@
-"""API：跑团项目管理 — 创建、查询状态"""
+"""API: campaign management - CRUD, state query, KP binding"""
 
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
@@ -63,14 +63,59 @@ async def get_campaign(
     repo = CampaignRepository(session)
     campaign = await repo.get(campaign_id)
     if not campaign:
-        raise HTTPException(status_code=404, detail="项目不存在")
+        raise HTTPException(status_code=404, detail="Campaign not found")
     return {
         "id": campaign.id,
         "name": campaign.name,
         "system_type": campaign.system_type,
         "description": campaign.description,
+        "kp_qq": campaign.kp_qq or "",
         "created_at": str(campaign.created_at),
     }
+
+
+@router.get("/by-kp/{kp_qq}")
+async def get_campaign_by_kp(
+    kp_qq: str,
+    session: AsyncSession = Depends(get_session),
+):
+    repo = CampaignRepository(session)
+    campaign = await repo.get_by_kp_qq(kp_qq)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="No campaign bound for this KP")
+    return {
+        "id": campaign.id,
+        "name": campaign.name,
+        "system_type": campaign.system_type,
+        "kp_qq": campaign.kp_qq,
+    }
+
+
+@router.put("/{campaign_id}/bind-kp")
+async def bind_kp(
+    campaign_id: str,
+    kp_qq: str,
+    session: AsyncSession = Depends(get_session),
+):
+    repo = CampaignRepository(session)
+    campaign = await repo.get(campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    await repo.update(campaign_id, kp_qq=kp_qq)
+    return {"status": "bound", "campaign_id": campaign_id, "kp_qq": kp_qq}
+
+
+@router.delete("/{campaign_id}/bind-kp")
+async def unbind_kp(
+    campaign_id: str,
+    session: AsyncSession = Depends(get_session),
+):
+    repo = CampaignRepository(session)
+    campaign = await repo.get(campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    await repo.update(campaign_id, kp_qq="")
+    return {"status": "unbound", "campaign_id": campaign_id}
 
 
 @router.get("/{campaign_id}/state")
@@ -129,6 +174,6 @@ async def delete_campaign(
     repo = CampaignRepository(session)
     campaign = await repo.get(campaign_id)
     if not campaign:
-        raise HTTPException(status_code=404, detail="项目不存在")
+        raise HTTPException(status_code=404, detail="Campaign not found")
     await repo.delete(campaign_id)
     return {"status": "deleted"}

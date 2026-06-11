@@ -20,10 +20,6 @@ class BotSettings:
     napcat_ws_url: str = field(
         default_factory=lambda: os.getenv("NAPCAT_WS_URL", "ws://napcat:8080")
     )
-    # KP 的 QQ 号（私聊发送建议）
-    kp_qq: Optional[str] = field(
-        default_factory=lambda: os.getenv("KP_QQ", None)
-    )
     # Bot 自身的 QQ 号
     bot_qq: Optional[str] = field(
         default_factory=lambda: os.getenv("BOT_QQ", None)
