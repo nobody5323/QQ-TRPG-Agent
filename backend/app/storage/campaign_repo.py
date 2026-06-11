@@ -22,3 +22,9 @@ class CampaignRepository(BaseRepository[Campaign]):
         stmt = select(Campaign).order_by(Campaign.created_at.desc()).limit(20)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_by_kp_qq(self, kp_qq: str) -> Optional[Campaign]:
+        """根据 KP QQ 号获取绑定的跑团项目"""
+        stmt = select(Campaign).where(Campaign.kp_qq == kp_qq)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()

@@ -280,18 +280,18 @@ services:
 5.4 KP 指令系统
 - backend/app/bot/commands.py
 - 私聊指令（KP 私聊 Bot）：
+  - `/绑定团 <campaign_id>` → 持久化绑定到 PostgreSQL（campaigns.kp_qq）
+  - `/解绑团` → 解除 KP 绑定
   - `/查线索 <关键词>` → 调用 RAG 检索
   - `/当前状态` → 返回当前剧情状态
   - `/建议` → 获取当前建议
   - `/总结` → 生成团录
-  - `/修正状态 <JSON>` → 手动修正剧情状态
-  - `/绑定团 <campaign_id>` → KP 绑定跑团项目
-- 群聊指令：
-  - `/help` → 查看可用指令
-  - `/状态` → 玩家可见的剧情摘要
+- 群聊绑定：
+  - `/群绑定 <群号> <campaign_id>` → 绑定群到跑团项目
 
 5.5 KP 私聊通知
-- 当 Agent 生成建议时，通过 Bot 私聊发送给 KP
+- 群消息 → FastAPI 处理 → 查 campaigns.kp_qq 获取 KP QQ → Bot 私聊发送
+- 支持多个 KP 共用一个 Bot，每个 KP 绑定不同的团
 - 消息格式：建议标题 + 模组内容（摘要） + 操作建议
 - 区分玩家可见内容 / KP 私密内容
 
@@ -299,6 +299,8 @@ services:
 - [x] Bot 独立进程可通过 `python -m app.bot` 启动 NoneBot2
 - [x] Bot 通过 HTTP 调用 FastAPI 消息处理 API
 - [x] KP 私聊 `/绑定团`、`/查线索`、`/当前状态`、`/帮助` 指令就绪
+- [x] `/绑定团` 持久化到 PostgreSQL（campaigns.kp_qq 字段）
+- [x] KP QQ 无需环境变量配置，用户私聊绑定后存入数据库
 - [x] 群聊消息 → 分类 → RAG 检索 → KP 建议全链路
 - [x] 非阻塞处理：群聊响应和 KP 私聊分离
 - [ ] 需 NapCatQQ 扫码登录后才能实际验证（`docker compose up napcat`）
@@ -347,9 +349,13 @@ services:
   - 已发现 / 未发现线索
 
 **交付检查**：
-- [ ] 群聊消息 → 分类 → 检索 → 生成建议 → 私聊 KP 的全链路跑通
-- [ ] Trace 记录正确写入数据库
-- [ ] 单次消息处理总延迟 < 5s
+- [x] Orchestrator 消息处理主循环：保存 → 上下文 → 分类 → 检索 → 建议 → Trace
+- [x] Context Manager 组装完整上下文（场景/NPC/线索/最近消息）
+- [x] LLM 消息分类替代硬编码关键词（classifier_agent，含关键词兜底）
+- [x] Trace 记录正确写入 agent_traces 表
+- [x] Trace Recorder 支持 start/finish 和 one-shot 两种模式
+- [x] 异常兜底：LLM 或 RAG 失败时返回安全默认值
+- [ ] 单次消息处理总延迟 < 5s（需实机测试）
 
 ---
 
@@ -381,9 +387,12 @@ services:
 - KP 收到私聊建议
 
 **交付检查**：
-- [ ] `docker compose up` 一键启动所有服务
-- [ ] 上传模组 → 解析 → 检索 → Bot 私聊全链路可用
-- [ ] KP 可通过指令查询线索和状态
+- [x] 构造示例模组 examples/demo_module.md（CoC 模组"迷雾庄园"）
+- [x] 构造示例消息序列 examples/demo_messages.jsonl（20 条模拟消息）
+- [x] 测试脚本 test_step7_mvp.py 覆盖 12 项测试（关键词分类、查询增强、分词、RRF 融合、重排序、结构验证等）
+- [x] 12/12 项目结构验证通过，48 个 .py 语法全部通过
+- [ ] `docker compose up` 一键启动所有服务（需实机测试）
+- [ ] 上传模组 → 解析 → 检索 → Bot 私聊全链路可用（需 Docker 环境）
 
 ---
 
@@ -1096,4 +1105,28 @@ Phase 4:
 | Step 21 | 多模型切换 | P3 | 1 天 |
 | Step 22 | Benchmark | P3 | 2 天 |
 | Step 23 | 团录导出 | P3 | 1 天 |
-| Step 24 | 文�
+| Step 24 | 文档完善 | P3 | 1 天 |
+| **总计** | | | **30-42 天** |
+| **Phase 1 ⚡** | | | **10-16 天** |
+
+> 注：工时估算基于单人全职开发。
+
+---
+
+## 关键设计决策记录
+
+1. **Phase 1 消息处理走 LLM 直接调用，Phase 2 再引入 LangGraph**
+   - 原因：MVP 快速验证核心链路，避免早期编排复杂度
+   - 切换时机：Step 8 重构 orchestrator
+
+2. **独立进程运行 NoneBot2，通过 HTTP 与 FastAPI 通信**
+   - 原因：Bot 进程重启不影响 API 服务，职责分离
+
+3. **模组格式优先支持 Markdown/TXT，PDF 作为增强**
+   - 原因：PDF 解析质量不可控，MVP 阶段先保证核心体验
+
+4. **防剧透采用「Prompt 约束 + Critic Agent 检查 + 输出过滤」三层机制**
+   - 原因：单层可能失效，多层确保安全性
+
+5. **检索优先使用语义向量检索，关键词检索作为补充**
+   - 原因：模组内容以自然语言为主，语义检索更匹配

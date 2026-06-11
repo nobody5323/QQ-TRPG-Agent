@@ -50,7 +50,7 @@ def main():
     from app.bot.config import bot_settings
     print(f"  API 后端: {bot_settings.api_base_url}")
     print(f"  NapCat:   {bot_settings.napcat_ws_url}")
-    print(f"  KP QQ:    {bot_settings.kp_qq or '未配置'}")
+    print(f"  Bot QQ:   {bot_settings.bot_qq or '未配置'}")
     print()
 
     # 运行 NoneBot2

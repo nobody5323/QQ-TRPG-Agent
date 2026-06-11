@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     def REDIS_URL(self) -> str:
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
-    # ── LLM ──
+    # ── LLM（聊天/分类/建议生成） ──
     LLM_PROVIDER: str = "openai"  # openai | anthropic | deepseek
     OPENAI_API_KEY: str = ""
     OPENAI_BASE_URL: str = "https://api.openai.com/v1"
@@ -46,8 +46,10 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str = ""
     DEEPSEEK_API_KEY: str = ""
 
-    # ── Embedding ──
+    # ── Embedding（向量化，可独立于 LLM 配置） ──
     EMBEDDING_PROVIDER: str = "openai"
+    EMBEDDING_API_KEY: str = ""                        # 留空则复用 OPENAI_API_KEY
+    EMBEDDING_BASE_URL: str = ""                       # 留空则复用 OPENAI_BASE_URL
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     EMBEDDING_DIMENSION: int = 1536
 
@@ -64,8 +66,15 @@ class Settings(BaseSettings):
     MESSAGE_CONTEXT_SIZE: int = 20  # 消息处理时携带的最近消息数
 
     # ── QQ Bot ──
-    KP_QQ: str = ""                        # KP 的 QQ 号
     BOT_QQ: str = ""                       # Bot 自身的 QQ 号
     NAPCAT_WS_URL: str = "ws://napcat:8080"  # NapCatQQ WebSocket 地址
 
-    # ── 观�
+    # ── 观测 ──
+    LANGFUSE_PUBLIC_KEY: str = ""
+    LANGFUSE_SECRET_KEY: str = ""
+    LANGFUSE_HOST: str = "https://cloud.langfuse.com"
+
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+
+
+settings = Settings()

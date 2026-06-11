@@ -97,5 +97,39 @@ class BotAPIClient:
             await self._client.aclose()
             self._client = None
 
+    # ── KP 绑定 ────────────────────────────────────────
+
+    async def bind_kp(self, campaign_id: str, kp_qq: str) -> Dict[str, Any]:
+        """绑定 KP QQ 到跑团项目"""
+        resp = await self.client.put(
+            f"/api/campaigns/{campaign_id}/bind-kp",
+            params={"kp_qq": kp_qq},
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    async def unbind_kp(self, campaign_id: str) -> Dict[str, Any]:
+        """解绑 KP QQ"""
+        resp = await self.client.delete(f"/api/campaigns/{campaign_id}/bind-kp")
+        resp.raise_for_status()
+        return resp.json()
+
+    async def get_campaign_by_kp(self, kp_qq: str) -> Dict[str, Any]:
+        """根据 KP QQ 获取绑定的跑团项目"""
+        resp = await self.client.get(f"/api/campaigns/by-kp/{kp_qq}")
+        if resp.status_code == 404:
+            return {}
+        resp.raise_for_status()
+        return resp.json()
+
+    async def get_kp_qq(self, campaign_id: str) -> Optional[str]:
+        """获取跑团项目绑定的 KP QQ 号"""
+        resp = await self.client.get(f"/api/campaigns/{campaign_id}")
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        data = resp.json()
+        return data.get("kp_qq") or None
+
 
 api_client = BotAPIClient()
