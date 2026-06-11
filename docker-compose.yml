@@ -1,0 +1,141 @@
+version: "3.8"
+
+# ============================================================
+# ChronicleAgent — Docker Compose（2C4G 云服务器版）
+#
+# 服务列表：
+#   postgres  — PostgreSQL 15 + pgvector 插件（数据持久化）
+#   qdrant    — 向量数据库（数据持久化）
+#   redis     — 缓存（Alpine 版，128MB 上限）
+#   backend   — FastAPI 后端
+#   bot       — NoneBot2 QQ Bot 独立进程
+#   frontend  — Nginx 静态托管前端（Phase 3 启用）
+# ============================================================
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  # ── PostgreSQL 15 + pgvector ──────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg15
+    environment:
+      POSTGRES_DB: chronicle
+      POSTGRES_USER: chronicle
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-chronicle_secret}
+      # 4GB 服务器：分配 1GB 给 PG
+      POSTGRES_CONFIG: >-
+        shared_buffers=512MB,
+        effective_cache_size=1GB,
+        work_mem=32MB,
+        maintenance_work_mem=128MB,
+        random_page_cost=1.1
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      # 不暴露到公网，仅内网访问
+      - "127.0.0.1:5432:5432"
+    shm_size: 512MB
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chronicle"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Qdrant 向量数据库 ──────────────────────────────
+  qdrant:
+    image: qdrant/qdrant:latest
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    ports:
+      - "127.0.0.1:6333:6333"  # HTTP API
+      # 6334 gRPC 内网使用，不暴露
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis（Alpine 轻量版） ────────────────────────
+  redis:
+    image: redis:7-alpine
+    command: redis-server --save "" --maxmemory 256MB --maxmemory-policy allkeys-lru
+    ports:
+      - "127.0.0.1:6379:6379"
+    restart: unless-stopped
+    logging: *default-logging
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ── 后端 API 服务 ─────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - ./backend:/app
+      - ./examples:/app/examples
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=postgres
+      - REDIS_HOST=redis
+      - QDRANT_HOST=qdrant
+      - VECTOR_STORE=${VECTOR_STORE:-qdrant}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+
+  # ── QQ Bot 服务（独立进程） ────────────────────────
+  bot:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: python -m app.bot
+    volumes:
+      - ./backend:/app
+    env_file:
+      - .env
+    environment:
+      - API_BASE_URL=http://backend:8000
+      - NAPCAT_WS_URL=ws://napcat:8080
+      - KP_QQ=${KP_QQ}
+      - BOT_QQ=${BOT_QQ}
+      - DEBUG=${DEBUG:-false}
+    depends_on:
+      - backend
+    restart: unless-stopped
+    logging: *default-logging
+
+  # ── NapCatQQ 协议端（登录后解除注释） ─────────────
+  # 启动后访问 http://服务器IP:6099 扫码登录
+  # 登录成功后重启，注释 WEBUI_ENABLE 关闭管理面板
+  # napcat:
+  #   image: mlikiowa/napcat-docker:latest
+  #   volumes:
+  #     - ./napcat/QQ:/app/.config/QQ
+  #     - ./napcat/config:/app/napcat/config
+  #   environment:
+  #     - ACCOUNT=${BOT_QQ}
+  #     - WS_ENABLE=true
+  #     - WEBUI_ENABLE=true
+  #     - 

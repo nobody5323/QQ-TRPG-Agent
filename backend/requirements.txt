@@ -1,0 +1,38 @@
+# ── ChronicleAgent Python 依赖 ────────────────────────
+
+# Web 框架
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+pydantic-settings==2.7.1
+
+# 数据库
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+psycopg2-binary==2.9.10
+alembic==1.14.1
+redis[hiredis]==5.2.1
+
+# LLM
+openai==1.58.1
+anthropic==0.49.0
+
+# Agent 编排
+langgraph==0.2.65
+langchain-core==0.3.33
+
+# 文档解析
+PyMuPDF==1.25.3
+markitdown==0.1.1
+
+# 工具
+httpx==0.28.1
+
+# 观测（可选）
+# langfuse==2.57.0
+# opentelemetry-api==1.29.0
+# opentelemetry-sdk==1.29.0
+
+# ── Bot 依赖（不部署 Bot 时可注释） ──
+nonebot2==2.4.1
+nonebot-adapter-onebot==2.6.0
