@@ -67,7 +67,7 @@ class Settings(BaseSettings):
 
     # ── QQ Bot ──
     BOT_QQ: str = ""                       # Bot 自身的 QQ 号
-    NAPCAT_WS_URL: str = "ws://napcat:8080"  # NapCatQQ WebSocket 地址
+    NAPCAT_WS_URL: str = "ws://napcat:3001"  # NapCatQQ WebSocket 地址
 
     # ── 观测 ──
     LANGFUSE_PUBLIC_KEY: str = ""

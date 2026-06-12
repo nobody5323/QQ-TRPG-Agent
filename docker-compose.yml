@@ -131,7 +131,7 @@ services:
   # 登录成功后重启：docker compose restart napcat
   # 注意事项：
   # - WEBUI_ENABLE 登录后建议设为 false，防止管理面板暴露
-  # - 8080 端口是 WebSocket，NoneBot2 通过 WS 连接 NapCatQQ
+  # - 3001 端口是 WebSocket，NoneBot2 通过 WS 连接 NapCatQQ
   # - napcat/QQ 目录是登录会话，不要删除或提交到 git
   napcat:
     image: mlikiowa/napcat-docker:latest
@@ -146,7 +146,7 @@ services:
       - NAPCAT_GID=1000
     ports:
       - "6099:6099"   # 管理面板（登录后关闭）
-      - "8080:8080"   # WebSocket（NoneBot2 专用，不走公网）
+      - "3001:3001"   # WebSocket（NoneBot2 用这个连接）
     restart: unless-stopped
 
   # ── 前端静态托管（Phase 3 启用） ──────────────────

@@ -16,6 +16,7 @@
   DEBUG           — 调试模式
 """
 
+import json
 import os
 import sys
 
@@ -30,8 +31,9 @@ def main():
     print("=" * 50)
 
     # 初始化 NoneBot2
+    from app.bot.config import bot_settings
     # 设置 WebSocket 连接方式：NoneBot2 作为客户端连接 NapCatQQ
-    os.environ.setdefault("ONEBOT_WS_URLS", '["ws://napcat:8080"]')
+    os.environ.setdefault("ONEBOT_WS_URLS", json.dumps([bot_settings.napcat_ws_url]))
 
     import nonebot
     from nonebot.adapters.onebot.v11 import Adapter as OneBotV11Adapter

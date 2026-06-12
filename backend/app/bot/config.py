@@ -18,7 +18,7 @@ class BotSettings:
     )
     # NapCatQQ WebSocket 地址
     napcat_ws_url: str = field(
-        default_factory=lambda: os.getenv("NAPCAT_WS_URL", "ws://napcat:8080")
+        default_factory=lambda: os.getenv("NAPCAT_WS_URL", "ws://napcat:3001")
     )
     # Bot 自身的 QQ 号
     bot_qq: Optional[str] = field(
