@@ -50,8 +50,10 @@ def main():
     ws_url = bot_settings.napcat_ws_url
     print(f"  [config] WebSocket target: {ws_url}")
 
-    # NoneBot2 初始化 — 直接把 onebot_ws_urls 传入配置
-    nonebot.init(onebot_ws_urls=[ws_url])
+    # NoneBot2 初始化 — 指定 driver 支持 WebSocket client
+    # ~fastapi 只支持 HTTP server，OneBot V11 adapter 需要 WebSocket client
+    # ~httpx+~websockets 提供 HTTP client + WebSocket client 能力
+    nonebot.init(driver="~httpx+~websockets", onebot_ws_urls=[ws_url])
 
     # 注册 OneBot v11 适配器
     driver = nonebot.get_driver()
