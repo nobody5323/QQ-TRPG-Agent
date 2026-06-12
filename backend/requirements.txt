@@ -28,6 +28,7 @@ markitdown==0.1.1
 
 # Tools
 httpx==0.28.1
+aiohttp==3.11.12
 websockets==15.0.1
 
 # Observability (optional)
