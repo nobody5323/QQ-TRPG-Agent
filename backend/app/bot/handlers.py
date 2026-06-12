@@ -75,14 +75,19 @@ async def handle_private_message(
     user_id = str(event.user_id)
     raw_text = event.raw_message.strip()
 
+    print(f"[DEBUG] Private message from {user_id}: '{raw_text}'")
+
     if not raw_text:
         return
 
     parsed = parse_command(raw_text)
+    print(f"[DEBUG] Parsed command: {parsed}")
     if parsed is None:
+        print(f"[DEBUG] Not a command, ignoring")
         return
 
     command, args = parsed
+    print(f"[DEBUG] Command: '{command}', Args: '{args}', in LOCAL: {command in LOCAL_COMMANDS}, in REMOTE: {command in REMOTE_COMMANDS}")
 
     if command in LOCAL_COMMANDS:
         await handle_local_command(bot, user_id, command, args)
@@ -114,16 +119,22 @@ async def handle_local_command(
             )
             return
         campaign_id = args.strip()
+        print(f"[DEBUG] Binding KP: user={user_id}, campaign={campaign_id}")
         # Persist binding to database via API
         try:
             result = await api_client.bind_kp(campaign_id, user_id)
+            print(f"[DEBUG] API bind result: {result}")
             # Also cache locally for fast lookup
             store.bind_kp(user_id, campaign_id)
             await bot.send_private_msg(
                 user_id=int(user_id),
                 message="Bound campaign: " + campaign_id + "\nUse /status to check.",
             )
+            print(f"[DEBUG] Bind success reply sent")
         except Exception as e:
+            print(f"[DEBUG] Bind exception: {e}")
+            import traceback
+            traceback.print_exc()
             await bot.send_private_msg(
                 user_id=int(user_id),
                 message="Bind failed: " + str(e)[:100],
