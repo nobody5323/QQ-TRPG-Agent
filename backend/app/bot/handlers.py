@@ -6,7 +6,7 @@ from nonebot.adapters.onebot.v11 import (
 )
 from nonebot.params import EventMessage
 
-import sys
+import nonebot
 from app.bot.api_client import api_client
 from app.bot.binding import store
 from app.bot.commands import parse_command, get_help_text, REMOTE_COMMANDS, LOCAL_COMMANDS
@@ -73,36 +73,46 @@ async def handle_private_message(
     event: PrivateMessageEvent,
     message: MessageSegment = EventMessage(),
 ):
-    user_id = str(event.user_id)
-    raw_text = event.raw_message.strip()
-
-    sys.stderr.write(f"[BOT] PRIVATE from {user_id}: {raw_text}\n")
-    sys.stderr.flush()
-
-    if not raw_text:
-        return
-
     try:
-        await bot.send_private_msg(
-            user_id=int(user_id),
-            message=f"收到: {raw_text}",
-        )
-        sys.stderr.write(f"[BOT] Reply sent OK\n")
-        sys.stderr.flush()
-    except Exception as e:
-        sys.stderr.write(f"[BOT] Reply FAILED: {e}\n")
-        sys.stderr.flush()
+        user_id = str(event.user_id)
+        raw_text = event.raw_message.strip()
 
-    parsed = parse_command(raw_text)
-    if parsed is None:
-        return
+        # 写文件确保执行（不依赖日志）
+        with open("/tmp/bot_trace.log", "a") as f:
+            f.write(f"PRIVATE: user={user_id} msg={raw_text}\n")
 
-    command, args = parsed
+        nonebot.logger.error(f"[TRACE] private_msg from {user_id}: {raw_text}")
 
-    if command in LOCAL_COMMANDS:
-        await handle_local_command(bot, user_id, command, args)
-    elif command in REMOTE_COMMANDS:
-        await handle_remote_command(bot, user_id, command, args)
+        if not raw_text:
+            return
+
+        # Try to send a simple reply
+        try:
+            await bot.send_private_msg(
+                user_id=int(user_id),
+                message=f"[bot] 收到你的消息",
+            )
+            nonebot.logger.error("[TRACE] send_private_msg succeeded")
+        except Exception as send_err:
+            nonebot.logger.error(f"[TRACE] send_private_msg FAILED: {send_err}")
+
+        parsed = parse_command(raw_text)
+        if parsed is None:
+            nonebot.logger.error("[TRACE] parse_command returned None")
+            return
+
+        command, args = parsed
+        nonebot.logger.error(f"[TRACE] cmd={command} args={args}")
+
+        if command in LOCAL_COMMANDS:
+            await handle_local_command(bot, user_id, command, args)
+        elif command in REMOTE_COMMANDS:
+            await handle_remote_command(bot, user_id, command, args)
+
+    except Exception as outer_err:
+        nonebot.logger.error(f"[TRACE] OUTER EXCEPTION: {outer_err}")
+        import traceback
+        nonebot.logger.error(traceback.format_exc())
 
 
 # ── Local commands (no backend needed) ─────────────
