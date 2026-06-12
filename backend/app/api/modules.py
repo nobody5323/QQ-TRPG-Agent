@@ -87,13 +87,13 @@ async def upload_module(
             )
 
         scene_repo = SceneRepository(session)
-        for scene_data in extraction.scenes:
+        for i, scene_data in enumerate(extraction.scenes):
             await scene_repo.create(
                 campaign_id=campaign_id,
                 name=scene_data.name,
                 summary=scene_data.description,
                 order=scene_data.order,
-                is_active=(scene_data.order == 0),
+                is_active=(i == 0),  # 只有第一个场景激活
             )
 
         if chunks:

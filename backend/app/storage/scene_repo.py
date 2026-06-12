@@ -16,7 +16,7 @@ class SceneRepository(BaseRepository[Scene]):
         stmt = select(Scene).where(
             Scene.campaign_id == campaign_id,
             Scene.is_active == True,
-        )
+        ).order_by(Scene.order.asc()).limit(1)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 

@@ -1,5 +1,3 @@
-version: "3.8"
-
 # ============================================================
 # ChronicleAgent — Docker Compose（2C4G 云服务器版）
 #
@@ -9,6 +7,7 @@ version: "3.8"
 #   redis     — 缓存（Alpine 版，128MB 上限）
 #   backend   — FastAPI 后端
 #   bot       — NoneBot2 QQ Bot 独立进程
+#   napcat    — NapCatQQ 协议端（首次需扫码登录）
 #   frontend  — Nginx 静态托管前端（Phase 3 启用）
 # ============================================================
 
@@ -100,7 +99,7 @@ services:
       postgres:
         condition: service_healthy
       qdrant:
-        condition: service_healthy
+        condition: service_started
       redis:
         condition: service_healthy
     restart: unless-stopped
@@ -126,24 +125,29 @@ services:
     restart: unless-stopped
     logging: *default-logging
 
-  # ── NapCatQQ 协议端（登录后解除注释） ─────────────
-  # 启动后访问 http://服务器IP:6099 扫码登录
-  # 登录成功后重启，注释 WEBUI_ENABLE 关闭管理面板
-  # napcat:
-  #   image: mlikiowa/napcat-docker:latest
-  #   volumes:
-  #     - ./napcat/QQ:/app/.config/QQ
-  #     - ./napcat/config:/app/napcat/config
-  #   environment:
-  #     - ACCOUNT=${BOT_QQ}
-  #     - WS_ENABLE=true
-  #     - WEBUI_ENABLE=true
-  #     - NAPCAT_UID=1000
-  #     - NAPCAT_GID=1000
-  #   ports:
-  #     - "6099:6099"   # 管理面板（登录后关闭）
-  #     - "8080:8080"   # WebSocket（NoneBot2 专用，不走公网）
-  #   restart: unless-stopped
+  # ── NapCatQQ 协议端 ─────────────────────────────
+  # 首次启动：docker compose up -d napcat
+  # 浏览器访问 http://服务器IP:6099，手机 QQ 扫码登录
+  # 登录成功后重启：docker compose restart napcat
+  # 注意事项：
+  # - WEBUI_ENABLE 登录后建议设为 false，防止管理面板暴露
+  # - 8080 端口是 WebSocket，NoneBot2 通过 WS 连接 NapCatQQ
+  # - napcat/QQ 目录是登录会话，不要删除或提交到 git
+  napcat:
+    image: mlikiowa/napcat-docker:latest
+    volumes:
+      - ./napcat/QQ:/app/.config/QQ
+      - ./napcat/config:/app/napcat/config
+    environment:
+      - ACCOUNT=${BOT_QQ}
+      - WS_ENABLE=true
+      - WEBUI_ENABLE=true
+      - NAPCAT_UID=1000
+      - NAPCAT_GID=1000
+    ports:
+      - "6099:6099"   # 管理面板（登录后关闭）
+      - "8080:8080"   # WebSocket（NoneBot2 专用，不走公网）
+    restart: unless-stopped
 
   # ── 前端静态托管（Phase 3 启用） ──────────────────
   # frontend:
