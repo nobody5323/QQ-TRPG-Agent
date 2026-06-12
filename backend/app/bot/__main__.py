@@ -1,76 +1,61 @@
-"""QQ Bot 启动入口（NoneBot2 独立进程）
+"""QQ Bot startup — minimal test."""
 
-启动方式：python -m app.bot
-
-连接架构：
-  NapCatQQ（协议端，WebSocket Server）:3001
-    ↑ WebSocket 连接 ↓
-  NoneBot2（Bot 框架，WebSocket Client）
-    ↑ HTTP ↓
-  FastAPI（后端服务）:8000
-
-配置（环境变量）：
-  API_BASE_URL    — FastAPI 地址（默认 http://backend:8000）
-  NAPCAT_WS_URL   — NapCatQQ WebSocket 地址（默认 ws://napcat:3001）
-  ONEBOT_WS_URLS  — NoneBot2 OneBot 适配器的 WS 连接地址（JSON 数组）
-  BOT_QQ          — Bot 的 QQ 号
-  DEBUG           — 调试模式
-"""
-
-import json
-import os
-import sys
-
+import json, os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-
 def main():
-    """启动 NoneBot2 QQ Bot"""
     print("=" * 50)
-    print("  ChronicleAgent QQ Bot")
-    print("  Starting NoneBot2 with OneBot v11...")
+    print("  ChronicleAgent QQ Bot (MINIMAL TEST)")
     print("=" * 50)
 
-    # 初始化 NoneBot2
     from app.bot.config import bot_settings
+    ws_url = bot_settings.napcat_ws_url
+    print("  WebSocket target:", ws_url)
 
-    # 确保 ONEBOT_WS_URLS 已设置（优先用 docker-compose 的环境变量，否则用 NAPCAT_WS_URL）
-    ws_urls_raw = os.environ.get("ONEBOT_WS_URLS", "")
-    if not ws_urls_raw:
-        ws_urls_raw = json.dumps([bot_settings.napcat_ws_url])
-        os.environ["ONEBOT_WS_URLS"] = ws_urls_raw
-        print(f"  [config] ONEBOT_WS_URLS not set, using NAPCAT_WS_URL: {ws_urls_raw}")
-    else:
-        print(f"  [config] ONEBOT_WS_URLS from env: {ws_urls_raw}")
+    os.environ["ONEBOT_WS_URLS"] = json.dumps([ws_url])
 
     import nonebot
-    from nonebot.adapters.onebot.v11 import Adapter as OneBotV11Adapter
+    from nonebot import on_message, logger
+    from nonebot.adapters.onebot.v11 import Bot as V11Bot, Adapter
 
-    # 构建 OneBot 适配器配置
-    ws_url = bot_settings.napcat_ws_url
-    print(f"  [config] WebSocket target: {ws_url}")
-
-    # NoneBot2 初始化 — 指定 driver 支持 WebSocket client
-    # ~fastapi 只支持 HTTP server，OneBot V11 adapter 需要 WebSocket client
-    # ~httpx+~websockets 提供 HTTP client + WebSocket client 能力
     nonebot.init(driver="~httpx+~websockets", onebot_ws_urls=[ws_url])
 
-    # 注册 OneBot v11 适配器
     driver = nonebot.get_driver()
-    driver.register_adapter(OneBotV11Adapter)
+    driver.register_adapter(Adapter)
 
-    # 加载事件处理器
-    import app.bot.handlers  # noqa: F401 — 注册事件处理器
+    # ── INLINE MINIMAL HANDLER ──
+    msg = on_message(priority=1, block=True)
 
-    # 应用配置
-    print(f"  API 后端: {bot_settings.api_base_url}")
-    print(f"  NapCat:   {bot_settings.napcat_ws_url}")
-    print(f"  Bot QQ:   {bot_settings.bot_qq or '未配置'}")
+    @msg.handle()
+    async def _(bot: V11Bot, event):
+        logger.error("!!! HANDLER FIRED !!!")
+        logger.error("  bot: %s", type(bot).__name__)
+        logger.error("  event: %s", type(event).__name__)
+
+        if hasattr(event, "get_plaintext"):
+            text = event.get_plaintext().strip()
+        elif hasattr(event, "raw_message"):
+            text = str(event.raw_message).strip()
+        else:
+            text = "[no text]"
+        logger.error("  text: %s", text[:100])
+
+        if hasattr(event, "message_type") and event.message_type == "private":
+            try:
+                await bot.send_private_msg(
+                    user_id=int(event.user_id),
+                    message="[bot] " + text[:30],
+                )
+                logger.error("  REPLY SENT")
+            except Exception as e:
+                logger.error("  REPLY FAILED: %s", e)
+                import traceback
+                traceback.print_exc()
+
+    # Don't import handlers.py at all
+    print("  Handler registered inline")
     print()
-
-    # 运行 NoneBot2
     nonebot.run()
-
 
 if __name__ == "__main__":
     main()
