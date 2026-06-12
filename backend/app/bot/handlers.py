@@ -75,19 +75,24 @@ async def handle_private_message(
     user_id = str(event.user_id)
     raw_text = event.raw_message.strip()
 
-    logger.info(f"[DEBUG] Private message from {user_id}: '{raw_text}'")
+    # 立即回复以确保 handler 被触发
+    await bot.send_private_msg(
+        user_id=int(user_id),
+        message=f"[echo] {raw_text}",
+    )
 
     if not raw_text:
         return
 
     parsed = parse_command(raw_text)
-    logger.info(f"[DEBUG] Parsed command: {parsed}")
     if parsed is None:
-        logger.info(f"[DEBUG] Not a command, ignoring")
+        await bot.send_private_msg(
+            user_id=int(user_id),
+            message="未识别的指令。发送 /帮助 查看可用指令。",
+        )
         return
 
     command, args = parsed
-    logger.info(f"[DEBUG] Command: '{command}', Args: '{args}', in LOCAL: {command in LOCAL_COMMANDS}, in REMOTE: {command in REMOTE_COMMANDS}")
 
     if command in LOCAL_COMMANDS:
         await handle_local_command(bot, user_id, command, args)
