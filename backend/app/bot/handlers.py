@@ -1,11 +1,12 @@
 """NoneBot2 event handlers - group message + KP private commands."""
 
-from nonebot import on_message, logger
+from nonebot import on_message
 from nonebot.adapters.onebot.v11 import (
     Bot, GroupMessageEvent, PrivateMessageEvent, MessageSegment,
 )
 from nonebot.params import EventMessage
 
+import sys
 from app.bot.api_client import api_client
 from app.bot.binding import store
 from app.bot.commands import parse_command, get_help_text, REMOTE_COMMANDS, LOCAL_COMMANDS
@@ -75,21 +76,25 @@ async def handle_private_message(
     user_id = str(event.user_id)
     raw_text = event.raw_message.strip()
 
-    # 立即回复以确保 handler 被触发
-    await bot.send_private_msg(
-        user_id=int(user_id),
-        message=f"[echo] {raw_text}",
-    )
+    sys.stderr.write(f"[BOT] PRIVATE from {user_id}: {raw_text}\n")
+    sys.stderr.flush()
 
     if not raw_text:
         return
 
-    parsed = parse_command(raw_text)
-    if parsed is None:
+    try:
         await bot.send_private_msg(
             user_id=int(user_id),
-            message="未识别的指令。发送 /帮助 查看可用指令。",
+            message=f"收到: {raw_text}",
         )
+        sys.stderr.write(f"[BOT] Reply sent OK\n")
+        sys.stderr.flush()
+    except Exception as e:
+        sys.stderr.write(f"[BOT] Reply FAILED: {e}\n")
+        sys.stderr.flush()
+
+    parsed = parse_command(raw_text)
+    if parsed is None:
         return
 
     command, args = parsed
@@ -98,11 +103,6 @@ async def handle_private_message(
         await handle_local_command(bot, user_id, command, args)
     elif command in REMOTE_COMMANDS:
         await handle_remote_command(bot, user_id, command, args)
-    else:
-        await bot.send_private_msg(
-            user_id=int(user_id),
-            message="Unknown command: /" + command + "\n\n" + get_help_text(),
-        )
 
 
 # ── Local commands (no backend needed) ─────────────
