@@ -1,6 +1,6 @@
 """NoneBot2 event handlers - group message + KP private commands."""
 
-from nonebot import on_message
+from nonebot import on_message, logger
 from nonebot.adapters.onebot.v11 import (
     Bot, GroupMessageEvent, PrivateMessageEvent, MessageSegment,
 )
@@ -75,19 +75,19 @@ async def handle_private_message(
     user_id = str(event.user_id)
     raw_text = event.raw_message.strip()
 
-    print(f"[DEBUG] Private message from {user_id}: '{raw_text}'")
+    logger.info(f"[DEBUG] Private message from {user_id}: '{raw_text}'")
 
     if not raw_text:
         return
 
     parsed = parse_command(raw_text)
-    print(f"[DEBUG] Parsed command: {parsed}")
+    logger.info(f"[DEBUG] Parsed command: {parsed}")
     if parsed is None:
-        print(f"[DEBUG] Not a command, ignoring")
+        logger.info(f"[DEBUG] Not a command, ignoring")
         return
 
     command, args = parsed
-    print(f"[DEBUG] Command: '{command}', Args: '{args}', in LOCAL: {command in LOCAL_COMMANDS}, in REMOTE: {command in REMOTE_COMMANDS}")
+    logger.info(f"[DEBUG] Command: '{command}', Args: '{args}', in LOCAL: {command in LOCAL_COMMANDS}, in REMOTE: {command in REMOTE_COMMANDS}")
 
     if command in LOCAL_COMMANDS:
         await handle_local_command(bot, user_id, command, args)
