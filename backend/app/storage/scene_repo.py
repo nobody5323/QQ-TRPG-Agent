@@ -28,8 +28,7 @@ class SceneRepository(BaseRepository[Scene]):
         return list(result.scalars().all())
 
     async def set_active(self, campaign_id: str, scene_id: str) -> Optional[Scene]:
-        """将指定场景设为活跃，同时取消其他场景的活跃状态"""
-        # 先取消所有活跃
+        """Set a scene as active, deactivating all others in the campaign."""
         stmt = select(Scene).where(
             Scene.campaign_id == campaign_id,
             Scene.is_active == True,
@@ -37,5 +36,34 @@ class SceneRepository(BaseRepository[Scene]):
         result = await self.session.execute(stmt)
         for scene in result.scalars().all():
             scene.is_active = False
-        # 设置新活跃
         return await self.update(scene_id, is_active=True)
+
+    async def transition_to(self, campaign_id: str, scene_name: str) -> Optional[Scene]:
+        """Transition to a scene by name. Creates it if it doesn't exist."""
+        stmt = select(Scene).where(
+            Scene.campaign_id == campaign_id,
+            Scene.name == scene_name,
+        )
+        result = await self.session.execute(stmt)
+        scene = result.scalar_one_or_none()
+        if scene:
+            return await self.set_active(campaign_id, scene.id)
+        new_scene = await self.create(Scene(
+            campaign_id=campaign_id,
+            name=scene_name,
+            summary="",
+            active_npcs=[],
+            discovered_clues=[],
+            order=0,
+            is_active=True,
+        ))
+        if new_scene:
+            stmt = select(Scene).where(
+                Scene.campaign_id == campaign_id,
+                Scene.id != new_scene.id,
+                Scene.is_active == True,
+            )
+            result = await self.session.execute(stmt)
+            for s in result.scalars().all():
+                s.is_active = False
+        return new_scene

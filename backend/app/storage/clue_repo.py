@@ -33,8 +33,19 @@ class ClueRepository(BaseRepository[Clue]):
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def mark_discovered(self, clue_id: str) -> Optional[Clue]:
-        return await self.update(clue_id, discovered=True)
+    async def mark_discovered(self, clue_id: str, discovered: bool = True) -> Optional[Clue]:
+        return await self.update(clue_id, discovered=discovered)
+
+    async def set_locked(self, clue_id: str, locked: bool = True, reason: str = "") -> Optional[Clue]:
+        """Mark a clue as locked (dice failure prevented discovery)."""
+        clue = await self.get(clue_id)
+        if not clue:
+            return None
+        status = {}
+        status["locked"] = locked
+        if reason:
+            status["lock_reason"] = reason
+        return await self.update(clue_id, status=status)
 
     async def get_by_location(self, campaign_id: str, location: str) -> List[Clue]:
         stmt = select(Clue).where(

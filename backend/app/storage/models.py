@@ -25,6 +25,7 @@ class Campaign(Base):
     system_type = Column(String(64), default="coc")
     description = Column(Text, default="")
     kp_qq = Column(String(32), default="", index=True)
+    bot_persona = Column(JSON, default=None)  # Phase 2 Step 11.5: chat bot persona config
     created_at = Column(DateTime, default=datetime.utcnow)
 
     modules = relationship("Module", back_populates="campaign", cascade="all, delete-orphan")
@@ -58,10 +59,20 @@ class Character(Base):
 
     id = Column(String(36), primary_key=True, default=_uuid)
     campaign_id = Column(String(36), ForeignKey("campaigns.id"), nullable=False, index=True)
+    player_qq = Column(String(32), default="", index=True)
     player_name = Column(String(255), default="")
     character_name = Column(String(255), default="")
     profile = Column(JSON, default=dict)
     status = Column(JSON, default=dict)
+    # Player State fields (Phase 2 Step 10.1.5)
+    sanity = Column(Integer, default=50)
+    skills = Column(JSON, default=dict)
+    inventory = Column(JSON, default=list)
+    personal_clues = Column(JSON, default=list)
+    status_effects = Column(JSON, default=list)
+    relationships = Column(JSON, default=dict)
+    state_version = Column(Integer, default=0)
+    last_modified_by = Column(String(32), default="system")  # "system" or "kp"
     created_at = Column(DateTime, default=datetime.utcnow)
 
     campaign = relationship("Campaign", back_populates="characters")
@@ -137,15 +148,3 @@ class AgentTrace(Base):
     __tablename__ = "agent_traces"
 
     id = Column(String(36), primary_key=True, default=_uuid)
-    campaign_id = Column(String(36), ForeignKey("campaigns.id"), nullable=False, index=True)
-    agent_name = Column(String(128), nullable=False)
-    input_data = Column(JSON, default=dict)
-    output_data = Column(JSON, default=dict)
-    retrieved_context = Column(JSON, default=dict)
-    tool_calls = Column(JSON, default=list)
-    critic_result = Column(JSON, default=dict)
-    latency_ms = Column(Integer, default=0)
-    token_count = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    campaign = relationship("Campaign", back_populates="traces")

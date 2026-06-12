@@ -211,4 +211,4 @@ async def delete_module(
     if module.campaign_id:
         qdrant_store.delete_by_campaign(module.campaign_id)
     await repo.delete(module_id)
-    return {"status": "deleted"}
+   

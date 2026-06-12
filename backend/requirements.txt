@@ -37,5 +37,4 @@ websockets==15.0.1
 # opentelemetry-sdk==1.29.0
 
 # Bot dependencies (comment out if not deploying bot)
-nonebot2==2.4.1
-nonebot-adapter-onebot==2.4.6
+nonebot2==

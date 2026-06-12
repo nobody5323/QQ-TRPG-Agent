@@ -151,19 +151,4 @@ services:
       - "3001:3001"   # WebSocket（NoneBot2 用这个连接）
     restart: unless-stopped
 
-  # ── 前端静态托管（Phase 3 启用） ──────────────────
-  # frontend:
-  #   image: nginx:alpine
-  #   volumes:
-  #     - ./frontend/dist:/usr/share/nginx/html:ro
-  #     - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-  #   ports:
-  #     - "3000:80"
-  #   depends_on:
-  #     - backend
-  #   restart: unless-stopped
-  #   logging: *default-logging
-
-volumes:
-  pgdata:
-  qdrant_storage:
+  # ── 前端静态托管（Phase 3 启用） ───�
