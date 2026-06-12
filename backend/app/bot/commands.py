@@ -53,6 +53,7 @@ def parse_command(text: str) -> Optional[Tuple[str, str]]:
 COMMAND_DESCRIPTIONS = {
     "绑定团": "绑定跑团项目：/绑定团 <campaign_id>",
     "解绑团": "解绑跑团项目：/解绑团",
+    "上传模组": "发送 .md/.txt 文件给 Bot 自动解析入库（无需指令，直接发文件即可）",
     "查线索": "检索模组内容：/查线索 <关键词>",
     "当前状态": "查看当前剧情状态：/当前状态",
     "建议": "获取当前 KP 建议：/建议",
@@ -72,7 +73,6 @@ def get_help_text() -> str:
 
 
 # 本地指令（Bot 侧处理，不调用后端 API）
-LOCAL_COMMANDS = {"绑定团", "解绑团", "群绑定", "帮助", "help"}
+LOCAL_COMMANDS = {"绑定团", "解绑团", "群绑定", "帮助", "help", "上传模组"}
 
-# 远程指令（通过 HTTP 调用 FastAPI 后端处理）
-REMOTE_COMMANDS = {"查线索", "search", "当前状态", "status", "建议", "advice", "总结", "summary"}
+# 远程指令（通过 HTTP 调用 Fas

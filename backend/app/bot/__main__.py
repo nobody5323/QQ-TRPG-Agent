@@ -1,6 +1,6 @@
 """QQ Bot startup — ChronicleAgent."""
 
-import json, os, sys
+import json, os, sys, base64
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
@@ -33,7 +33,7 @@ def main():
         user_id = str(event.user_id) if hasattr(event, "user_id") else ""
         raw_text = event.get_plaintext().strip() if hasattr(event, "get_plaintext") else ""
 
-        if not raw_text or not user_id:
+        if not user_id:
             return
 
         logger.info("MSG from=%s text=%s", user_id, raw_text[:100])
@@ -42,9 +42,105 @@ def main():
         is_group = hasattr(event, "message_type") and event.message_type == "group"
 
         if is_private:
-            await _handle_private(bot, user_id, raw_text)
+            file_seg = _get_file_segment(event)
+            if file_seg:
+                await _handle_file_upload(bot, user_id, file_seg)
+            if raw_text:
+                await _handle_private(bot, user_id, raw_text)
         elif is_group:
-            await _handle_group(bot, event, user_id, raw_text)
+            if raw_text:
+                await _handle_group(bot, event, user_id, raw_text)
+
+    def _get_file_segment(event):
+        """Extract file segment from message if present."""
+        if hasattr(event, "message"):
+            for seg in event.message:
+                if hasattr(seg, "type") and seg.type == "file":
+                    return seg
+        return None
+
+    async def _handle_file_upload(bot: V11Bot, user_id: str, file_seg):
+        """Handle KP file upload: download file → POST to backend → reply result."""
+        file_name = file_seg.data.get("file", "unknown.md") if hasattr(file_seg, "data") else "unknown.md"
+        file_id_val = file_seg.data.get("file_id", "") if hasattr(file_seg, "data") else ""
+
+        ext = os.path.splitext(file_name)[1].lower()
+        if ext not in (".md", ".txt", ".markdown", ".pdf"):
+            await bot.send_private_msg(
+                user_id=int(user_id),
+                message="不支持的文件格式: {}\n支持: .md, .txt, .markdown, .pdf".format(ext),
+            )
+            return
+
+        cid = store.get_campaign_for_kp(user_id)
+        if not cid:
+            try:
+                data = await api_client.get_campaign_by_kp(user_id)
+                if data and data.get("id"):
+                    cid = data["id"]
+                    store.bind_kp(user_id, cid)
+            except Exception:
+                pass
+        if not cid:
+            await bot.send_private_msg(
+                user_id=int(user_id),
+                message="请先 /绑定团 <campaign_id> 绑定跑团项目，再上传模组文件。",
+            )
+            return
+
+        await bot.send_private_msg(
+            user_id=int(user_id),
+            message="正在接收并解析模组: {} ...".format(file_name),
+        )
+
+        # Download file via OneBot get_file API
+        file_content = None
+        try:
+            if file_id_val:
+                result = await bot.get_file(file_id=file_id_val)
+                file_field = result.get("file", "") if isinstance(result, dict) else ""
+                if file_field.startswith("base64://"):
+                    file_content = base64.b64decode(file_field[9:])
+                elif file_field.startswith("http://") or file_field.startswith("https://"):
+                    import httpx
+                    async with httpx.AsyncClient(timeout=30) as client:
+                        resp = await client.get(file_field)
+                        resp.raise_for_status()
+                        file_content = resp.content
+                else:
+                    url = result.get("url", "") if isinstance(result, dict) else ""
+                    if url:
+                        import httpx
+                        async with httpx.AsyncClient(timeout=30) as client:
+                            resp = await client.get(url)
+                            resp.raise_for_status()
+                            file_content = resp.content
+        except Exception as e:
+            logger.warning("File download failed: %s", str(e))
+
+        if file_content is None:
+            await bot.send_private_msg(
+                user_id=int(user_id),
+                message="文件下载失败，NapCat 可能未返回可下载的文件链接。请尝试重新发送文件，或在 WebUI 上传模组。",
+            )
+            return
+
+        # POST to backend
+        try:
+            result = await api_client.upload_module(cid, file_name, file_content)
+            lines = [
+                "模组解析完成: " + str(result.get("title", file_name)),
+                "场景: " + str(result.get("scenes", 0)) + " 个",
+                "NPC: " + str(result.get("npcs", 0)) + " 个",
+                "线索: " + str(result.get("clues", 0)) + " 个",
+                "文本块: " + str(result.get("chunks", 0)) + " 个",
+            ]
+            await bot.send_private_msg(user_id=int(user_id), message="\n".join(lines))
+        except Exception as e:
+            await bot.send_private_msg(
+                user_id=int(user_id),
+                message="模组解析失败: " + str(e)[:200],
+            )
 
     async def _handle_private(bot: V11Bot, user_id: str, text: str):
         parsed = parse_command(text)
@@ -105,107 +201,14 @@ def main():
             store.bind_group(parts[0], parts[1])
             await bot.send_private_msg(user_id=int(user_id), message="群 " + parts[0] + " -> " + parts[1])
 
+        elif cmd == "上传模组":
+            await bot.send_private_msg(
+                user_id=int(user_id),
+                message="直接发送 .md / .txt / .pdf 模组文件给 Bot 即可自动解析入库。\n无需额外指令，把文件拖进聊天框发送即可。",
+            )
+
     async def _handle_remote_cmd(bot: V11Bot, user_id: str, cmd: str, args: str):
         cid = store.get_campaign_for_kp(user_id)
         if not cid:
             try:
-                data = await api_client.get_campaign_by_kp(user_id)
-                if data and data.get("id"):
-                    cid = data["id"]
-                    store.bind_kp(user_id, cid)
-            except Exception:
-                pass
-        if not cid:
-            await bot.send_private_msg(user_id=int(user_id), message="请先 /绑定团 <campaign_id> 绑定跑团项目。")
-            return
-
-        try:
-            if cmd in ("查线索", "search"):
-                if not args:
-                    await bot.send_private_msg(user_id=int(user_id), message="用法: /查线索 <关键词>")
-                    return
-                result = await api_client.rag_query(cid, args)
-                sources = result.get("sources", [])
-                if not sources:
-                    await bot.send_private_msg(user_id=int(user_id), message="未找到相关结果。")
-                    return
-                lines = ["检索结果 " + "=" * 20]
-                for i, s in enumerate(sources[:5], 1):
-                    t = s.get("text", "")[:150]
-                    sc = s.get("score", 0)
-                    tag = " [KP]" if s.get("visibility") == "kp_only" else ""
-                    lines.append("\n{}. (相关度:{:.2f}){}".format(i, sc, tag))
-                    lines.append("   " + t)
-                await bot.send_private_msg(user_id=int(user_id), message="\n".join(lines)[:1500])
-
-            elif cmd in ("当前状态", "status"):
-                result = await api_client.get_campaign_state(cid)
-                lines = ["当前状态 " + "=" * 20]
-                cur = result.get("current_scene")
-                if cur:
-                    lines.append("\n场景: " + cur.get("name", "?"))
-                    s = cur.get("summary", "")[:200]
-                    if s: lines.append("  " + s)
-                else:
-                    lines.append("\n场景: 未设定")
-                npcs = result.get("active_npcs", [])
-                if npcs:
-                    lines.append("\nNPC: " + ", ".join(n.get("name","?") for n in npcs))
-                disc = result.get("discovered_clues", [])
-                if disc:
-                    lines.append("\n已发现: " + ", ".join(c.get("name","?") for c in disc))
-                undisc = result.get("undiscovered_clues", [])
-                if undisc:
-                    lines.append("\n未发现: " + ", ".join(c.get("name","?") for c in undisc))
-                await bot.send_private_msg(user_id=int(user_id), message="\n".join(lines)[:1500])
-
-            elif cmd in ("建议", "advice"):
-                result = await api_client.kp_command(cid, "advice", args)
-                await bot.send_private_msg(user_id=int(user_id), message=result.get("suggestion", "暂无建议。"))
-
-            elif cmd in ("总结", "summary"):
-                result = await api_client.generate_summary(cid)
-                s = result.get("markdown", "")
-                await bot.send_private_msg(user_id=int(user_id), message=s[:1500] if s else "团录尚未生成。")
-
-        except Exception as e:
-            await bot.send_private_msg(user_id=int(user_id), message="指令执行失败: " + str(e)[:200])
-
-    async def _handle_group(bot: V11Bot, event, user_id: str, text: str):
-        group_id = str(event.group_id)
-        cid = store.get_campaign_for_group(group_id)
-        if not cid:
-            return
-
-        sender = (event.sender.card or event.sender.nickname or user_id) if hasattr(event, "sender") else user_id
-        try:
-            result = await api_client.handle_message(campaign_id=cid, sender=sender, content=text)
-        except Exception:
-            return
-
-        if not result.get("need_kp_notify", False):
-            return
-
-        try:
-            kp_qq = await api_client.get_kp_qq(cid)
-            if kp_qq:
-                parts = ["[消息提醒]"]
-                if result.get("message_type") == "player_action":
-                    parts[0] = "[玩家行动]"
-                elif result.get("message_type") == "roleplay":
-                    parts[0] = "[角色扮演]"
-                sug = result.get("kp_suggestion", "")
-                if sug: parts.append("\n\n" + sug[:800])
-                await bot.send_private_msg(user_id=int(kp_qq), message="\n".join(parts))
-        except Exception:
-            pass
-
-    print("  API:  ", bot_settings.api_base_url)
-    print("  NapCat:", bot_settings.napcat_ws_url)
-    print("  Bot QQ:", bot_settings.bot_qq or "?")
-    print()
-    nonebot.run()
-
-
-if __name__ == "__main__":
-    main()
+                data = await api_client.get_c

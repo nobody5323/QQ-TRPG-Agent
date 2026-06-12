@@ -131,5 +131,4 @@ class BotAPIClient:
         data = resp.json()
         return data.get("kp_qq") or None
 
-
-api_client = BotAPIClient()
+    async def upload_module(s
