@@ -3,7 +3,7 @@
 启动方式：python -m app.bot
 
 连接架构：
-  NapCatQQ（协议端，WebSocket Server）:8080
+  NapCatQQ（协议端，WebSocket Server）:3001
     ↑ WebSocket 连接 ↓
   NoneBot2（Bot 框架，WebSocket Client）
     ↑ HTTP ↓
@@ -11,8 +11,9 @@
 
 配置（环境变量）：
   API_BASE_URL    — FastAPI 地址（默认 http://backend:8000）
-  NAPCAT_WS_URL   — NapCatQQ WebSocket 地址（默认 ws://napcat:8080）
-  KP_QQ           — KP 的 QQ 号
+  NAPCAT_WS_URL   — NapCatQQ WebSocket 地址（默认 ws://napcat:3001）
+  ONEBOT_WS_URLS  — NoneBot2 OneBot 适配器的 WS 连接地址（JSON 数组）
+  BOT_QQ          — Bot 的 QQ 号
   DEBUG           — 调试模式
 """
 
@@ -32,14 +33,25 @@ def main():
 
     # 初始化 NoneBot2
     from app.bot.config import bot_settings
-    # 设置 WebSocket 连接方式：NoneBot2 作为客户端连接 NapCatQQ
-    os.environ.setdefault("ONEBOT_WS_URLS", json.dumps([bot_settings.napcat_ws_url]))
+
+    # 确保 ONEBOT_WS_URLS 已设置（优先用 docker-compose 的环境变量，否则用 NAPCAT_WS_URL）
+    ws_urls_raw = os.environ.get("ONEBOT_WS_URLS", "")
+    if not ws_urls_raw:
+        ws_urls_raw = json.dumps([bot_settings.napcat_ws_url])
+        os.environ["ONEBOT_WS_URLS"] = ws_urls_raw
+        print(f"  [config] ONEBOT_WS_URLS not set, using NAPCAT_WS_URL: {ws_urls_raw}")
+    else:
+        print(f"  [config] ONEBOT_WS_URLS from env: {ws_urls_raw}")
 
     import nonebot
     from nonebot.adapters.onebot.v11 import Adapter as OneBotV11Adapter
 
-    # NoneBot2 初始化（读取环境变量中的配置）
-    nonebot.init()
+    # 构建 OneBot 适配器配置
+    ws_url = bot_settings.napcat_ws_url
+    print(f"  [config] WebSocket target: {ws_url}")
+
+    # NoneBot2 初始化 — 直接把 onebot_ws_urls 传入配置
+    nonebot.init(onebot_ws_urls=[ws_url])
 
     # 注册 OneBot v11 适配器
     driver = nonebot.get_driver()
@@ -49,7 +61,6 @@ def main():
     import app.bot.handlers  # noqa: F401 — 注册事件处理器
 
     # 应用配置
-    from app.bot.config import bot_settings
     print(f"  API 后端: {bot_settings.api_base_url}")
     print(f"  NapCat:   {bot_settings.napcat_ws_url}")
     print(f"  Bot QQ:   {bot_settings.bot_qq or '未配置'}")

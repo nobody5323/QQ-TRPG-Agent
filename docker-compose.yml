@@ -116,6 +116,7 @@ services:
     env_file:
       - .env
     environment:
+      - ONEBOT_WS_URLS=["ws://napcat:3001"]
       - API_BASE_URL=http://backend:8000
       - NAPCAT_WS_URL=ws://napcat:3001
       - BOT_QQ=${BOT_QQ}
