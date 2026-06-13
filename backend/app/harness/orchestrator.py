@@ -19,6 +19,7 @@ from app.storage.message_repo import MessageRepository
 from app.harness.trace_recorder import TraceRecorder
 from app.harness.agent_state import AgentState, new_state
 from app.harness.graph import get_graph
+from app.harness.session_context import set_session
 
 
 class Orchestrator:
@@ -79,11 +80,14 @@ class Orchestrator:
             campaign_id=campaign_id,
             sender=sender,
             content=content,
-            session=self.session,
             dice_result=dice_result,
             trace_id=trace_id,
             thread_id=tid,
         )
+
+        # Store session in contextvar — it cannot live in AgentState
+        # because LangGraph checkpointer tries to msgpack-serialize it.
+        set_session(self.session)
 
         # Run the graph
         try:
@@ -98,6 +102,7 @@ class Orchestrator:
             return {
                 "need_kp_notify": False,
                 "kp_suggestion": "",
+                "public_reply": "",
                 "message_type": "chat",
                 "classification": {"message_type": "chat"},
             }

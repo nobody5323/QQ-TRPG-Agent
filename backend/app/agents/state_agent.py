@@ -214,7 +214,8 @@ async def node_state_track(state: AgentState) -> AgentState:
     campaign_id = state.get("campaign_id", "")
     dice_result = state.get("dice_result")
     ctx = state.get("current_state", {}) or state.get("context", {})
-    session = state.get("session")
+    from app.harness.session_context import get_session
+    session = get_session()
 
     if not state.get("need_state_update", False):
         return state

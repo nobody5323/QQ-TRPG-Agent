@@ -230,7 +230,8 @@ async def node_classify(state: AgentState) -> AgentState:
     campaign_id = state.get("campaign_id", "")
     content = state.get("content", "")
     sender = state.get("sender", "")
-    session = state.get("session")
+    from app.harness.session_context import get_session
+    session = get_session()
 
     if campaign_id and session:
         ctx = await build_context(session, campaign_id)

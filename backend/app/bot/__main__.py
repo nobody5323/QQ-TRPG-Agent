@@ -36,11 +36,23 @@ def main():
         bot_qq = bot_settings.bot_qq
         if not bot_qq:
             return False
+        # Check 1: structured AT segments in message
         if hasattr(event, "message"):
             for seg in event.message:
                 if hasattr(seg, "type") and seg.type == "at":
                     qq = seg.data.get("qq", "") if hasattr(seg, "data") else ""
                     if str(qq) == str(bot_qq):
+                        return True
+        # Check 2: CQ code string (handles NapCat sending @ as text)
+        raw_cq = str(event.message) if hasattr(event, "message") else ""
+        if f"[CQ:at,qq={bot_qq}]" in raw_cq or f"[CQ:at,qq={bot_qq}," in raw_cq:
+            return True
+        # Check 3: fallback — text segments that start with @bot_qq
+        if hasattr(event, "message"):
+            for seg in event.message:
+                if hasattr(seg, "type") and seg.type == "text":
+                    txt = seg.data.get("text", "") if hasattr(seg, "data") else ""
+                    if f"@{bot_qq}" in txt:
                         return True
         return False
 
@@ -80,6 +92,9 @@ def main():
             if raw_text:
                 if not _is_at_bot(event, user_id):
                     return
+                group_id = str(event.group_id) if hasattr(event, "group_id") else "?"
+                cid = store.get_campaign_for_group(group_id)
+                logger.info("GROUP_HANDLE: group_id=%s, cid=%s, text=%s", group_id, cid, raw_text[:60])
                 await _handle_group(bot, event, user_id, raw_text)
 
 
@@ -333,13 +348,18 @@ def main():
     async def _handle_group(bot: V11Bot, event, user_id: str, text: str):
         group_id = str(event.group_id)
         cid = store.get_campaign_for_group(group_id)
+        logger.info("_handle_group ENTER: group_id=%s, cid=%s, text=%s", group_id, cid, text[:100])
         if not cid:
+            logger.info("_handle_group: no cid for group %s, returning", group_id)
             return
 
         sender = (event.sender.card or event.sender.nickname or user_id) if hasattr(event, "sender") else user_id
         try:
+            logger.info("_handle_group: calling api_client.handle_message cid=%s sender=%s", cid, sender)
             result = await api_client.handle_message(
                 campaign_id=cid, sender=sender, content=text)
+            logger.info("_handle_group: api returned need_kp=%s public_reply_len=%s",
+                result.get("need_kp_notify"), len(result.get("public_reply", "")))
         except Exception as e:
             logger.error("handle_message failed: %s", e)
             return
@@ -349,6 +369,7 @@ def main():
         if public_reply:
             try:
                 await bot.send(event, public_reply[:1000])
+                logger.info("_handle_group: sent public_reply to group")
             except Exception as e:
                 logger.error("send group reply failed: %s", e)
 
@@ -373,13 +394,4 @@ def main():
 
     # ═══════════════════════════════════════════════════════════
     #  Boot
-    # ═══════════════════════════════════════════════════════════
-    print("  API:  ", bot_settings.api_base_url)
-    print("  NapCat:", bot_settings.napcat_ws_url)
-    print("  Bot QQ:", bot_settings.bot_qq or "?")
-    print()
-    nonebot.run()
-
-
-if __name__ == "__main__":
-    main()
+    # ════════════════════════════════════════════════

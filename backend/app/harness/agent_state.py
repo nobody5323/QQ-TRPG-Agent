@@ -27,7 +27,6 @@ class AgentState(TypedDict, total=False):
     sender: str
     content: str
     message: str
-    session: Any
 
     # Classifier output
     message_type: str

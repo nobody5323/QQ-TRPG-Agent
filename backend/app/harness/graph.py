@@ -27,7 +27,7 @@ Graph structure:
 from typing import Literal
 
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import MemorySaver
+# Checkpointer removed: AsyncSession in AgentState is not msgpack-serializable.
 
 from app.harness.agent_state import AgentState, new_state
 
@@ -152,9 +152,32 @@ async def node_output(state: AgentState) -> AgentState:
     """Pack the final output dict for the API response."""
     existing = state.get("output", {})
 
+    # ── Fallback: generate public_reply if none was set ──
+    public_reply = state.get("public_reply", "")
+    if not public_reply:
+        content = state.get("content", "")
+        msg_type = state.get("message_type", "chat")
+        rag_results = state.get("rag_results", [])
+        if rag_results:
+            top = rag_results[0]
+            title = top.get("title", "")
+            text = (top.get("text") or "")[:300]
+            score = top.get("score", 0)
+            public_reply = f"[模组检索] {title} (相关度 {score:.0%})\n{text}"
+        elif msg_type == "player_action":
+            public_reply = f"收到行动: {content[:100]}"
+        elif msg_type == "roleplay":
+            public_reply = "（已记录角色扮演）"
+        else:
+            public_reply = f"收到: {content[:100]}"
+        state["public_reply"] = public_reply
+
+    # ── Also fallback kp_suggestion ──
+    kp_suggestion = state.get("kp_suggestion", "")
+
     state["output"] = {
         "need_kp_notify": state.get("need_kp_notify", False),
-        "kp_suggestion": state.get("kp_suggestion", ""),
+        "kp_suggestion": kp_suggestion,
         "public_reply": state.get("public_reply", ""),
         "message_type": state.get("message_type", "chat"),
         "classification": {
@@ -246,7 +269,7 @@ def build_graph() -> StateGraph:
     workflow.add_node("kp_command", node_kp_command)
     workflow.add_node("chat_bot", node_chat_bot)
     workflow.add_node("critic_check", node_critic_check)
-    workflow.add_node("output", node_output)
+    workflow.add_node("build_output", node_output)
 
     workflow.set_entry_point("classify")
 
@@ -286,18 +309,19 @@ def build_graph() -> StateGraph:
     workflow.add_edge("rule_lookup", "critic_check")
     workflow.add_edge("chat_bot", "critic_check")
 
-    workflow.add_edge("kp_command", "output")
+    workflow.add_edge("kp_command", "build_output")
 
     workflow.add_conditional_edges(
         "critic_check",
         route_by_risk,
-        {"output": "output"},
+        {"output": "build_output"},
     )
 
-    workflow.add_edge("output", END)
+    workflow.add_edge("build_output", END)
 
-    memory = MemorySaver()
-    graph = workflow.compile(checkpointer=memory)
+    # No checkpointer: AsyncSession in AgentState is not msgpack-serializable.
+    # Each API call is independent — checkpointing across invocations isn't needed.
+    graph = workflow.compile()
     return graph
 
 

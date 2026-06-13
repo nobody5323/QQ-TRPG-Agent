@@ -192,7 +192,8 @@ async def node_chat_bot(state: AgentState) -> AgentState:
     """
     content = state.get("content", "")
     sender = state.get("sender", "")
-    session = state.get("session")
+    from app.harness.session_context import get_session
+    session = get_session()
     ctx = state.get("current_state", {}) or state.get("context", {})
 
     # Get bot persona from campaign
@@ -250,6 +251,4 @@ async def node_chat_bot(state: AgentState) -> AgentState:
         "chat_risk": risk,
     }
     state["message_type"] = "chat"
-    state["need_kp_notify"] = False
-
-    return state
+    s

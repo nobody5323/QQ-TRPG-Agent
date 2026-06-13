@@ -23,7 +23,8 @@ async def node_rag_retrieve(state: AgentState) -> AgentState:
 
     campaign_id = state.get("campaign_id", "")
     content = state.get("content", "")
-    session = state.get("session")
+    from app.harness.session_context import get_session
+    session = get_session()
 
     if not campaign_id or not session:
         state["rag_results"] = []
