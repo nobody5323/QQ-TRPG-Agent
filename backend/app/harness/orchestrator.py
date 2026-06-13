@@ -137,6 +137,7 @@ class Orchestrator:
         return {
             "need_kp_notify": output.get("need_kp_notify", False),
             "kp_suggestion": result_state.get("kp_suggestion", ""),
+            "public_reply": output.get("public_reply", ""),
             "message_type": result_state.get("message_type", "chat"),
             "classification": output.get("classification", {"message_type": result_state.get("message_type", "chat")}),
         }

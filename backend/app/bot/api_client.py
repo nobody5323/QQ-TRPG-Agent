@@ -131,4 +131,17 @@ class BotAPIClient:
         data = resp.json()
         return data.get("kp_qq") or None
 
-    async def upload_module(s
+    async def upload_module(self, campaign_id: str, filename: str, content: bytes) -> Dict[str, Any]:
+        """上传模组文件到后端解析"""
+        import io
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            resp = await client.post(
+                f"{self.base_url}/api/modules/upload",
+                data={"campaign_id": campaign_id},
+                files={"file": (filename, io.BytesIO(content), "application/octet-stream")},
+            )
+            resp.raise_for_status()
+            return resp.json()
+
+
+api_client = BotAPIClient()

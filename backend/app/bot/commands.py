@@ -75,4 +75,5 @@ def get_help_text() -> str:
 # 本地指令（Bot 侧处理，不调用后端 API）
 LOCAL_COMMANDS = {"绑定团", "解绑团", "群绑定", "帮助", "help", "上传模组"}
 
-# 远程指令（通过 HTTP 调用 Fas
+# 远程指令（通过 HTTP 调用 FastAPI 后端处理）
+REMOTE_COMMANDS = {"查线索", "search", "当前状态", "status", "建议", "advice", "总结", "summary"}

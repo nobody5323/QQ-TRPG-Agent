@@ -34,6 +34,7 @@ class HandleMessageRequest(BaseModel):
 class HandleMessageResponse(BaseModel):
     need_kp_notify: bool = False
     kp_suggestion: str = ""
+    public_reply: str = ""
     message_type: str = "unknown"
 
 
@@ -75,6 +76,7 @@ async def handle_message(
     return HandleMessageResponse(
         need_kp_notify=result.get("need_kp_notify", False),
         kp_suggestion=result.get("kp_suggestion", ""),
+        public_reply=result.get("public_reply", ""),
         message_type=result.get("message_type", "unknown"),
     )
 

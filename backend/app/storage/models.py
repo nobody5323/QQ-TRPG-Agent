@@ -148,3 +148,15 @@ class AgentTrace(Base):
     __tablename__ = "agent_traces"
 
     id = Column(String(36), primary_key=True, default=_uuid)
+    campaign_id = Column(String(36), ForeignKey("campaigns.id"), nullable=False, index=True)
+    agent_name = Column(String(128), nullable=False)
+    input_data = Column(JSON, default=dict)
+    output_data = Column(JSON, default=dict)
+    retrieved_context = Column(JSON, default=dict)
+    tool_calls = Column(JSON, default=list)
+    critic_result = Column(JSON, default=dict)
+    latency_ms = Column(Integer, default=0)
+    token_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    campaign = relationship("Campaign", back_populates="traces")

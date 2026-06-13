@@ -1,5 +1,6 @@
-"""Alembic 环境配置"""
+"""Alembic 环境配置 — 支持 Docker 环境变量覆盖"""
 
+import os
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 from alembic import context
@@ -8,9 +9,14 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+# Docker 环境：用 DB_HOST 环境变量覆盖 alembic.ini 中的 localhost
+db_host = os.environ.get("DB_HOST", "")
+if db_host:
+    db_url = f"postgresql+psycopg2://chronicle:chronicle_secret@{db_host}:5432/chronicle"
+    config.set_main_option("sqlalchemy.url", db_url)
+
 # 导入所有模型让 Alembic 检测到
 from app.storage.database import Base
-# 导入模型模块（确保模型被注册到 Base.metadata）
 import app.storage.models  # noqa
 
 target_metadata = Base.metadata
